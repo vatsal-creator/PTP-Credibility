@@ -1,19 +1,25 @@
 # PTP Credibility Engine
 
-A machine learning project for detecting whether a Promise to Pay (PTP) is likely to be genuine and achievable.
+A machine learning system that estimates whether a Promise to Pay (PTP) made during a debt-collection interaction is likely to be credible and achievable.
 
-In debt collection calls, a borrower may agree to make a payment on a particular date. But not every promise has the same meaning. Some borrowers genuinely intend to pay, some agree to a date that doesn't match their cash flow, and some may simply agree to end the conversation.
+A borrower agreeing to pay does not necessarily mean the promise will be kept. A promise can be genuine but financially infeasible, vague, made under pressure, or inconsistent with previous payment behaviour.
 
-The idea behind this project is to use information around the conversation and the borrower's history to estimate how credible a PTP is.
+This project explores how conversation-level signals and borrower history can be combined to estimate PTP credibility and classify the type of promise being made.
+
+## Live Demo
+
+**[Try the deployed Streamlit app](https://ptp-credibility-4wxlf26uhebhgpzam53mqz.streamlit.app/)**
+
+The app allows users to enter borrower information and a collection-call transcript and receive a predicted PTP credibility score, PTP type, and supporting signals.
 
 ## What the model does
 
-The system is designed to estimate:
+The system produces two main outputs:
 
-* PTP credibility — how likely the promised payment is to actually happen.
-* PTP type — what kind of promise the conversation appears to represent.
+* **PTP credibility** — an estimate of how likely the promised payment is to be fulfilled.
+* **PTP type** — a classification of what kind of promise the interaction represents.
 
-Possible PTP types include:
+The current prototype supports categories such as:
 
 * Genuine and feasible
 * Genuine but not feasible
@@ -22,13 +28,13 @@ Possible PTP types include:
 * Repeat promiser
 * Agent-recorded or agent-pushed PTP
 
-The distinction matters because the next action should depend on why a promise looks weak, rather than simply treating every low-confidence PTP the same way.
+The goal is not simply to label a promise as "good" or "bad", but to understand *why* a promise may be weak and what that could mean for the next collection action.
 
-## The basic idea
+## How it works
 
-The current pipeline looks like this:
+The overall pipeline is:
 
-```
+```text
 Synthetic Data
       ↓
 Feature Preparation
@@ -39,12 +45,14 @@ Trained Model
       ↓
 Prediction Pipeline
       ↓
+Streamlit Application
+      ↓
 PTP Credibility + PTP Type
 ```
 
-The eventual system could work during a live collection call:
+For a collection-call workflow, the intended flow is:
 
-```
+```text
 Call / Transcript
        ↓
 Relevant PTP Signals
@@ -58,66 +66,68 @@ PTP Type
 Suggested Follow-up
 ```
 
-For example, if a borrower agrees to pay after their salary date but the proposed PTP date is earlier, the system should be able to distinguish a potentially genuine but infeasible promise from an intentionally misleading one.
+For example, if a borrower agrees to pay after receiving their salary but chooses a date before the expected salary date, the system should be able to distinguish a potentially genuine but infeasible promise from other types of weak commitments.
 
-## Signals
+## Signals used
 
 The model can use signals such as:
 
-* Whether the borrower or agent proposed the payment date
+* Who proposed the payment date
 * Whether a specific payment amount was agreed upon
 * Previous PTP keep rate
 * Previous payment behaviour
-* Promised date compared with expected cash flow
+* Promised date relative to expected cash flow
 * Number of previously broken promises
-* Whether there was negotiation during the call
+* Whether negotiation occurred during the call
 * Conditional language such as "salary aayi toh" or "try karunga"
 * Whether the borrower gave a clear commitment or a vague response
 * Payment-link activity after the call
 
-For a real system, these signals would need to be validated carefully. A single phrase or behaviour should not be treated as proof that a borrower is being dishonest.
+These signals are intended to provide context rather than act as standalone evidence of borrower behaviour.
 
 ## What I built
 
-The current repository contains the core machine learning pipeline:
+The repository contains the complete prototype pipeline, from synthetic data generation and model training to a deployed prediction interface.
 
-| File                         | Purpose                                  |
-| ---------------------------- | ---------------------------------------- |
-| `generate_synthetic_data.py` | Generates synthetic data for development |
-| `ptp_synthetic.csv`          | Synthetic dataset used by the model      |
-| `train_model.py`             | Trains the machine learning model        |
-| `ptp_engine.joblib`          | Saved trained model                      |
-| `ptp_pipeline.py`            | Loads the model and performs predictions |
-
-The current version uses synthetic data, so the model should be treated as a prototype rather than a validated real-world collection model.
+| File                         | Purpose                                             |
+| ---------------------------- | --------------------------------------------------- |
+| `generate_synthetic_data.py` | Generates synthetic borrower and PTP data           |
+| `ptp_synthetic.csv`          | Synthetic dataset used for development and training |
+| `train_model.py`             | Trains and saves the machine learning model         |
+| `ptp_pipeline.py`            | Feature preparation and prediction pipeline         |
+| `ptp_engine.joblib`          | Trained model used by the application               |
+| `app.py`                     | Streamlit interface for interactive predictions     |
+| `livecall.py`                | Live-call interface prototype                       |
+| `requirements.txt`           | Python dependencies                                 |
 
 ## Why synthetic data?
 
-Real borrower and collection data is sensitive and cannot simply be used for a portfolio project.
+Real borrower and collection data is sensitive and is not appropriate for a public portfolio project.
 
-Synthetic data allows the complete pipeline to be developed and tested without exposing real customer information.
+Synthetic data makes it possible to build and demonstrate the complete ML workflow without exposing customer information.
 
-However, good performance on synthetic data does not mean that the model will perform equally well on real borrowers.
+The trade-off is important: performance on synthetic data does **not** demonstrate that the model will perform similarly on real borrowers.
 
-A real implementation would require:
+A real deployment would require:
 
 * Properly labelled historical outcomes
-* A clear definition of what counts as a "kept" PTP
-* Real conversation/transcript data
-* Careful feature validation
-* Calibration testing
+* A precise definition of a kept PTP
+* Representative conversation and transcript data
+* Feature validation with domain experts
+* Probability calibration
 * Out-of-time validation
 * Monitoring for model drift
+* Evaluation across different portfolios and borrower segments
 
 ## A problem with historical data
 
-There is another important issue with this type of model.
+Collection data also has an important limitation.
 
-Historical collection data records what happened under the decisions that were already made. It does not show what would have happened if a different action had been taken.
+Historical data records outcomes under the actions that were already taken. It does not directly tell us what would have happened if a different intervention had been used.
 
 For example:
 
-```
+```text
 Historical system
       ↓
   Action taken
@@ -125,132 +135,125 @@ Historical system
 Borrower outcome
 ```
 
-This makes it difficult to determine whether a model-driven intervention actually improves recovery.
+A model may predict which PTPs are likely to be broken, but that does not automatically prove that changing the collection strategy will improve recovery.
 
-A stronger production evaluation would therefore need controlled testing to compare different interventions rather than relying only on offline model accuracy.
+A production system would therefore need controlled experiments or other causal evaluation methods to measure whether model-driven interventions actually improve outcomes.
 
 ## Responsible use
 
-A low credibility score should not automatically mean harsher treatment.
+A low credibility score should not automatically result in harsher treatment.
 
-Someone may genuinely want to pay but be unable to meet the proposed date because of financial circumstances. That is different from intentionally making a promise just to end a call.
+A borrower may genuinely intend to pay but be unable to meet the proposed date because of their financial situation. That is different from making a promise simply to end a conversation.
 
 A production system should therefore consider:
 
 * Why a PTP received a low score
 * Whether hardship indicators are present
 * Whether the prediction is reliable for the relevant portfolio
-* Whether the model is becoming biased toward particular borrower groups
-* Whether predictions can be explained to agents and supervisors
+* Whether the model behaves differently across borrower groups
+* Whether predictions can be explained to collection agents
 * How customer and conversation data is stored and retained
 
-The model should support better decisions, not replace human judgement.
+The model should support human decision-making rather than replace it.
 
 ## Current status
 
-The core ML pipeline is built.
+The prototype is currently deployed as a Streamlit web application.
 
-The repository currently contains the synthetic dataset, training script, trained model and prediction pipeline.
+The project includes:
 
-The next step is to put a simple interface around the model so that a user can enter PTP information and receive:
+* Synthetic data generation
+* Feature engineering
+* Machine learning model training
+* Saved prediction model
+* Prediction pipeline
+* Interactive Streamlit interface
+* Public deployment
 
-```
-PTP Credibility Score
-        +
-Predicted PTP Type
-        +
-Relevant reasoning/signals
-```
-
-The longer-term goal is to turn the pipeline into a small working application that demonstrates the complete flow from input → model → prediction.
-
-## Project structure
-
-```
-PTP-Credibility/
-│
-├── generate_synthetic_data.py
-├── ptp_synthetic.csv
-├── train_model.py
-├── ptp_pipeline.py
-├── ptp_engine.joblib
-├── requirements.txt
-├── README.md
-└── .gitignore
-```
+The current model is a prototype trained on synthetic data and should not be interpreted as a production-ready collections model.
 
 ## Running locally
 
 Create a virtual environment:
 
-```
+```bash
 python -m venv venv
 ```
 
 Activate it on Windows:
 
-```
+```bash
 venv\Scripts\activate
 ```
 
-Install the required packages:
+Install dependencies:
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
-Generate the synthetic dataset:
+If you want to regenerate the synthetic dataset:
 
-```
+```bash
 python generate_synthetic_data.py
 ```
 
-Train the model:
+Retrain the model:
 
-```
+```bash
 python train_model.py
 ```
 
-Run the prediction pipeline:
+Run the Streamlit application:
 
+```bash
+streamlit run app.py
 ```
-python ptp_pipeline.py
+
+The application will normally be available at:
+
+```text
+http://localhost:8501
 ```
 
 ## Tech stack
 
 * Python
 * Pandas
+* NumPy
 * Scikit-learn
 * Joblib
+* Streamlit
 * Machine Learning
 * Synthetic data generation
 
 ## Limitations
 
-This is currently a prototype.
+This is a portfolio prototype rather than a production lending or collections system.
 
-The biggest limitation is the use of synthetic data. The model has not been validated against a real collection portfolio, so the reported predictions should not be interpreted as real-world performance.
+The main limitation is the use of synthetic data. The model has not been validated against a real collection portfolio, so its predictions should not be interpreted as real-world performance.
 
-The live-call component is also not implemented yet. The current project focuses on the underlying ML pipeline.
+The live-call functionality is also a prototype and would require additional work for production deployment, including reliable speech/transcript processing, latency handling, monitoring, security, and integration with collection systems.
 
-## Next steps
+## Future work
 
-The planned development path is:
+Potential next steps include:
 
-```
-Core ML Pipeline
-      ↓
-Interactive Interface
-      ↓
+```text
+Synthetic Prototype
+       ↓
+Real / Representative Data
+       ↓
+Model Validation
+       ↓
 Model Explanation
-      ↓
-Real-time prediction flow
-      ↓
-Deployment
+       ↓
+Real-time Transcript Processing
+       ↓
+Controlled Intervention Testing
+       ↓
+Production Monitoring
 ```
-
-The immediate goal is to turn the existing Python pipeline into a usable application rather than keeping it as a collection of scripts.
 
 ## Author
 
