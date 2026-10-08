@@ -10,6 +10,14 @@ This project explores how conversation-level signals and borrower history can be
 
 **[Try the deployed Streamlit app](https://ptp-credibility-4wxlf26uhebhgpzam53mqz.streamlit.app/)**
 
+### Application
+
+![PTP Credibility Engine interface](screenshots/main-screen.png)
+
+### Prediction Output
+
+![PTP Credibility Engine prediction result](screenshots/prediction-result.png)
+
 The app allows users to enter borrower information and a collection-call transcript and receive a predicted PTP credibility score, PTP type, and supporting signals.
 
 ## What the model does
